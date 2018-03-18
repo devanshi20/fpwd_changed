@@ -4,6 +4,7 @@ import android.app.ProgressDialog;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.os.Build;
+import android.support.annotation.NonNull;
 import android.support.annotation.RequiresApi;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
@@ -18,6 +19,9 @@ import android.widget.Toast;
 
 import com.example.atul_.eatit.Common.Common;
 import com.example.atul_.eatit.model.User;
+import com.google.android.gms.tasks.OnCompleteListener;
+import com.google.android.gms.tasks.OnFailureListener;
+import com.google.android.gms.tasks.Task;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
@@ -25,6 +29,10 @@ import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
 import com.rengwuxian.materialedittext.MaterialEditText;
 
+import java.util.HashMap;
+import java.util.Map;
+
+import dmax.dialog.SpotsDialog;
 import io.paperdb.Paper;
 
 public class SignIn extends AppCompatActivity {
@@ -199,60 +207,76 @@ public class SignIn extends AppCompatActivity {
 
     private void showForgotpwdDialog() {
 
-        AlertDialog.Builder builder=new AlertDialog.Builder(this);
-        builder.setTitle("Forgot Password");
-        builder.setMessage("Enter your secure code");
 
-        LayoutInflater inflater=this.getLayoutInflater();
-        View forgot_view=inflater.inflate(R.layout.forgot_password_layout,null);
-        builder.setView(forgot_view);
-        builder.setIcon(R.drawable.ic_security_black_24dp);
+            AlertDialog.Builder alertDialog=new AlertDialog.Builder(SignIn.this);
+            alertDialog.setTitle("CHANGE PASSWORD");
+            alertDialog.setMessage("Please fill all information");
+            LayoutInflater inflater=LayoutInflater.from(this);
+            View layout_pwd=inflater.inflate(R.layout.change_password_layout,null );
+            final MaterialEditText edtPassword=(MaterialEditText)layout_pwd.findViewById(R.id.edtPassword);
+            final MaterialEditText edtNewPassword=(MaterialEditText)layout_pwd.findViewById(R.id.edtNewPassword);
+            final MaterialEditText edtRepeatPassword=(MaterialEditText)layout_pwd.findViewById(R.id.edtRepeatPassword);
+            alertDialog.setView(layout_pwd);
 
-        final MaterialEditText edtPhone=(MaterialEditText)forgot_view.findViewById(R.id.edtphone);
-        final MaterialEditText edtSecureCode=(MaterialEditText)forgot_view.findViewById(R.id.edtSecureCode);
+            alertDialog.setPositiveButton("CHANGE", new DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(DialogInterface dialogInterface, int i) {
 
-        builder.setPositiveButton("YES", new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialogInterface, int i) {
+                    final android.app.AlertDialog waitingDialog=new SpotsDialog(SignIn.this);
+                    waitingDialog.show();
 
-                table_user.addValueEventListener(new ValueEventListener() {
-                    @Override
-                    public void onDataChange(DataSnapshot dataSnapshot) {
-                        User user = dataSnapshot.child(edtPhone.getText().toString()).getValue(User.class);
+                    if (edtPassword.getText().toString().equals(Common.currentUser.getPassword()))
+                    {
+                        if (edtNewPassword.getText().toString().equals(edtRepeatPassword.getText().toString()))
+                        {
+                            Map<String,Object> passwordUpdate=new HashMap<>();
+                            passwordUpdate.put("Password",edtNewPassword.getText().toString());
 
-                        String sc=edtSecureCode.getText().toString();
+                            DatabaseReference user=FirebaseDatabase.getInstance().getReference("User");
+                            user.child(Common.currentUser.getPhone())
+                                    .updateChildren(passwordUpdate)
+                                    .addOnCompleteListener(new OnCompleteListener<Void>() {
+                                        @Override
+                                        public void onComplete(@NonNull Task<Void> task) {
+                                            waitingDialog.dismiss();
+                                            Toast.makeText(SignIn.this, "Password was updated", Toast.LENGTH_SHORT).show();
+                                        }
+                                    })
+                                    .addOnFailureListener(new OnFailureListener() {
+                                        @Override
+                                        public void onFailure(@NonNull Exception e) {
+                                            Toast.makeText(SignIn.this,e.getMessage(), Toast.LENGTH_SHORT).show();
+                                        }
+                                    });
 
-                        if (user!=null && user.getSecureCode().equals(sc)) {
-                            Toast.makeText(SignIn.this, "Your password:" + user.getPassword(), Toast.LENGTH_LONG).show();
-                        } else {
-                            Toast.makeText(SignIn.this, "Wrong secure code", Toast.LENGTH_SHORT).show();
+                        }
+                        else
+                        {
+                            waitingDialog.dismiss();
+                            Toast.makeText(SignIn.this, "New password doesnt match", Toast.LENGTH_SHORT).show();
                         }
                     }
+                    else
+                    {
 
-                    @Override
-                    public void onCancelled(DatabaseError databaseError) {
-
+                        waitingDialog.dismiss();
+                        Toast.makeText(SignIn.this, "Wrong old password", Toast.LENGTH_SHORT).show();
                     }
-                });
+
+                }
+            });
+
+            alertDialog.setNegativeButton("CANCEL", new DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(DialogInterface dialogInterface, int i) {
+                    dialogInterface.dismiss();
+
+                }
+            });
+
+            alertDialog.show();
 
 
-            }
-        });
-
-        builder.setNegativeButton("No",new DialogInterface.OnClickListener(){
-
-            @Override
-
-            public  void onClick(DialogInterface dialogInterface,int i)
-            {
-
-            }
-
-
-        });
-
-
-        builder.show();
 
 
 
